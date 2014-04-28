@@ -1,68 +1,32 @@
-%if 0%{?fedora}
-%global with_python3 1
+%define srcname setuptools
+%define pymajor 3
+%define pyminor 3
+%define pyver %{pymajor}%{pyminor}
+%define pybasever %{pymajor}.%{pyminor}
+%define __python %{_bindir}/python%{pybasever}
+%define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 
-# This controls whether setuptools is build as a wheel or not,
-# simplifying Python 3.4 bootstraping process
-%global build_wheel 0
-%else
-%{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print (get_python_lib())")}
-%endif
-
-%global srcname setuptools
-%if 0%{?build_wheel}
-%global python2_wheelname %{srcname}-%{version}-py2.py3-none-any.whl
-%global python2_record %{python2_sitelib}/%{srcname}-%{version}.dist-info/RECORD
-%if 0%{?with_python3}
-%global python3_wheelname %python2_wheelname
-%global python3_record %{python3_sitelib}/%{srcname}-%{version}.dist-info/RECORD
-%endif
-%endif
-
-Name:           python-setuptools
-Version:        2.0
-Release:        2%{?dist}
-Summary:        Easily build and distribute Python packages
-
+Name:           python%{pyver}-%{srcname}
+Version:        3.4.4
+Release:        1.ius%{?dist}
+Summary:        Easily build and distribute Python %{pybasever} packages
+Vendor:         IUS Community Project
 Group:          Applications/System
 License:        Python or ZPLv2.0
 URL:            http://pypi.python.org/pypi/%{srcname}
 Source0:        http://pypi.python.org/packages/source/s/%{srcname}/%{srcname}-%{version}.tar.gz
 Source1:        psfl.txt
 Source2:        zpl.txt
-
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-
 BuildArch:      noarch
-# Require this so that we use a system copy of the match_hostname() function
-Requires: python-backports-ssl_match_hostname
-BuildRequires: python-backports-ssl_match_hostname
-BuildRequires:  python2-devel
-%if 0%{?build_wheel}
-BuildRequires:  python-pip
-BuildRequires:  python-wheel
-%endif
-%if 0%{?with_python3}
-BuildRequires:  python3-devel
-%if 0%{?build_wheel}
-BuildRequires:  python3-pip
-BuildRequires:  python3-wheel
-%endif
-%endif # if with_python3
-# For unittests
-BuildRequires: subversion
-
-# Legacy: We removed this subpackage once easy_install no longer depended on
-# python-devel
-# Planning on removing for F21
-# https://lists.fedoraproject.org/pipermail/devel/2013-November/191344.html
-Provides: python-setuptools-devel = %{version}-%{release}
-Obsoletes: python-setuptools-devel < 0.6.7-1
-
-# We're now back to setuptools as the package.
+BuildRequires:  python%{pyver}, python%{pyver}-devel, python%{pyver}-tools
+Requires:       python%{pyver}, python%{pyver}-devel
+Provides:       python%{pyver}-setuptools
 # Keep the python-distribute name active for a few releases.  Eventually we'll
 # want to get rid of the Provides and just keep the Obsoletes
-Provides: python-distribute = %{version}-%{release}
-Obsoletes: python-distribute < 0.6.36-2
+Provides: python%{pyver}-distribute = %{version}-%{release}
+Obsoletes: python%{pyver}-distribute <= 0.6.49-1
+
 
 %description
 Setuptools is a collection of enhancements to the Python distutils that allow
@@ -72,117 +36,28 @@ have dependencies on other packages.
 This package also contains the runtime components of setuptools, necessary to
 execute the software that requires pkg_resources.py.
 
-%if 0%{?with_python3}
-%package -n python3-setuptools
-Summary:        Easily build and distribute Python 3 packages
-Group:          Applications/System
-
-# Note: Do not need to Require python3-backports-ssl_match_hostname because it
-# has been present since python3-3.2.  We do not ship python3-3.0 or
-# python3-3.1 anywhere
-
-%description -n python3-setuptools
-Setuptools is a collection of enhancements to the Python 3 distutils that allow
-you to more easily build and distribute Python 3 packages, especially ones that
-have dependencies on other packages.
-
-This package also contains the runtime components of setuptools, necessary to
-execute the software that requires pkg_resources.py.
-
-%endif # with_python3
 
 %prep
 %setup -q -n %{srcname}-%{version}
+find -name '*.orig' -type f -print0 | xargs -0 /bin/rm -f
+find -name '*.py' -type f -print0 | xargs -0 sed -i '1s|python|&%{pymajor}|'
 
-find -name '*.txt' -exec chmod -x \{\} \;
-find . -name '*.orig' -exec rm \{\} \;
-
-%if 0%{?with_python3}
-rm -rf %{py3dir}
-cp -a . %{py3dir}
-pushd %{py3dir}
-for file in setuptools/command/easy_install.py ; do
-    sed -i '1s|^#!python|#!%{__python3}|' $file
-done
-popd
-%endif # with_python3
-
-for file in setuptools/command/easy_install.py ; do
-    sed -i '1s|^#!python|#!%{__python}|' $file
-done
 
 %build
-%if 0%{?build_wheel}
-%{__python} setup.py bdist_wheel
-%else
 CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
-%endif
 
-%if 0%{?with_python3}
-pushd %{py3dir}
-%if 0%{?build_wheel}
-%{__python3} setup.py bdist_wheel
-%else
-CFLAGS="$RPM_OPT_FLAGS" %{__python3} setup.py build
-%endif
-popd
-%endif # with_python3
 
 %install
 rm -rf %{buildroot}
-
-# Must do the python3 install first because the scripts in /usr/bin are
-# overwritten with every setup.py install (and we want the python2 version
-# to be the default for now).
-# Change to defaulting to python3 version in F22
-%if 0%{?with_python3}
-pushd %{py3dir}
-%if 0%{?build_wheel}
-pip3 install -I dist/%{python3_wheelname} --root %{buildroot} --strip-file-prefix %{buildroot}
-
-# TODO: we have to remove this by hand now, but it'd be nice if we wouldn't have to
-# (pip install wheel doesn't overwrite)
-rm %{buildroot}%{_bindir}/easy_install
-
-sed -i '/\/usr\/bin\/easy_install,/d' %{buildroot}%{python3_record}
-%else
-%{__python3} setup.py install --skip-build --root %{buildroot}
-%endif
-
-rm -rf %{buildroot}%{python3_sitelib}/setuptools/tests
-%if 0%{?build_wheel}
-sed -i '/^setuptools\/tests\//d' %{buildroot}%{python3_record}
-%endif
-
-install -p -m 0644 %{SOURCE1} %{SOURCE2} %{py3dir}
-find %{buildroot}%{python3_sitelib} -name '*.exe' | xargs rm -f
-chmod +x %{buildroot}%{python3_sitelib}/setuptools/command/easy_install.py
-popd
-%endif # with_python3
-
-%if 0%{?build_wheel}
-pip2 install -I dist/%{python2_wheelname} --root %{buildroot} --strip-file-prefix %{buildroot}
-%else
-%{__python} setup.py install --skip-build --root %{buildroot}
-%endif
-
+%{__python} setup.py install --optimize 1 --skip-build --root %{buildroot}
 rm -rf %{buildroot}%{python_sitelib}/setuptools/tests
-%if 0%{?build_wheel}
-sed -i '/^setuptools\/tests\//d' %{buildroot}%{python2_record}
-%endif
-
+rm -f %{buildroot}%{_bindir}/easy_install
 install -p -m 0644 %{SOURCE1} %{SOURCE2} .
-find %{buildroot}%{python_sitelib} -name '*.exe' | xargs rm -f
-chmod +x %{buildroot}%{python_sitelib}/setuptools/command/easy_install.py
+
 
 %check
 %{__python} setup.py test
 
-%if 0%{?with_python3}
-pushd %{py3dir}
-%{__python3} setup.py test
-popd
-%endif # with_python3
 
 %clean
 rm -rf %{buildroot}
@@ -192,18 +67,13 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %doc *.txt docs
 %{python_sitelib}/*
-%{_bindir}/easy_install
-%{_bindir}/easy_install-2.*
-
-%if 0%{?with_python3}
-%files -n python3-setuptools
-%defattr(-,root,root,-)
-%doc psfl.txt zpl.txt docs
-%{python3_sitelib}/*
 %{_bindir}/easy_install-3.*
-%endif # with_python3
+
 
 %changelog
+* Mon Apr 28 2014 Carl George <carl.george@rackspace.com> - 3.4.4-1.ius
+- Initial port from Fedora to IUS
+
 * Wed Apr 23 2014 Matej Stuchlik <mstuchli@redhat.com> - 2.0-2
 - Add a switch to build setuptools as wheel
 
