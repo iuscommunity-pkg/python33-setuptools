@@ -19,13 +19,12 @@ Source1:        psfl.txt
 Source2:        zpl.txt
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch:      noarch
-BuildRequires:  python%{pyver}, python%{pyver}-devel, python%{pyver}-tools
-Requires:       python%{pyver}, python%{pyver}-devel
-Provides:       python%{pyver}-setuptools
+BuildRequires:  python%{pyver}, python%{pyver}-devel
+Requires:       python%{pyver}
 # Keep the python-distribute name active for a few releases.  Eventually we'll
 # want to get rid of the Provides and just keep the Obsoletes
-Provides: python%{pyver}-distribute = %{version}-%{release}
-Obsoletes: python%{pyver}-distribute <= 0.6.49-1
+Provides:       python%{pyver}-distribute = %{version}-%{release}
+Obsoletes:      python%{pyver}-distribute <= 0.6.49-2.ius%{?dist}
 
 
 %description
