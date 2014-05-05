@@ -7,7 +7,7 @@
 %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 
 Name:           python%{pyver}-%{srcname}
-Version:        3.4.4
+Version:        3.5.1
 Release:        1.ius%{?dist}
 Summary:        Easily build and distribute Python %{pybasever} packages
 Vendor:         IUS Community Project
@@ -17,9 +17,8 @@ URL:            http://pypi.python.org/pypi/%{srcname}
 Source0:        http://pypi.python.org/packages/source/s/%{srcname}/%{srcname}-%{version}.tar.gz
 Source1:        psfl.txt
 Source2:        zpl.txt
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch:      noarch
-BuildRequires:  python%{pyver}, python%{pyver}-devel
+BuildRequires:  python%{pyver}-devel
 Requires:       python%{pyver}
 # Keep the python-distribute name active for a few releases.  Eventually we'll
 # want to get rid of the Provides and just keep the Obsoletes
@@ -38,13 +37,11 @@ execute the software that requires pkg_resources.py.
 
 %prep
 %setup -q -n %{srcname}-%{version}
-find -name '*.orig' -type f -print0 | xargs -0 /bin/rm -f
 find -name '*.py' -type f -print0 | xargs -0 sed -i '1s|python|&%{pymajor}|'
 
 
 %build
 CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
-
 
 %install
 rm -rf %{buildroot}
@@ -66,10 +63,17 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %doc *.txt docs
 %{python_sitelib}/*
-%{_bindir}/easy_install-3.*
+%{_bindir}/easy_install-%{pybasever}
 
 
 %changelog
+* Mon May 05 2014 Carl George <carl.george@rackspace.com> - 3.5.1-1.ius
+- Latest upstream
+- BuildRoot redundant on el6
+- Remove redundant dependency on python33
+- Remove check for *.orig files
+- Use pybasever macro instead of easy_install-3.*
+
 * Mon Apr 28 2014 Carl George <carl.george@rackspace.com> - 3.4.4-1.ius
 - Initial port from Fedora to IUS
 
