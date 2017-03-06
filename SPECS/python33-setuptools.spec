@@ -42,7 +42,9 @@ execute the software that requires pkg_resources.py.
 
 %prep
 %setup -q -n %{srcname}-%{version}
-find -name '*.py' -type f -print0 | xargs -0 sed -i '1s|python|&%{pymajor}|'
+
+# Strip shebangs
+find setuptools -name \*.py | xargs sed -i -e '1 {/^#!\//d}'
 
 
 %build
@@ -74,6 +76,7 @@ LC_CTYPE=en_US.utf8 %{__python3} setup.py ptr
 * Mon Mar 06 2017 Carl George <carl.george@rackspace.com> - 33.1.1-1.ius
 - Update to version 33
 - Install LICENSE file
+- Strip shebangs
 
 * Mon Dec 05 2016 Ben Harper <ben.harper@rackspace.com> - 30.2.0-1.ius
 - Monthly release
